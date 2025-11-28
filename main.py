@@ -25,8 +25,9 @@ from io import BytesIO
 
 import cv2
 import matplotlib
-matplotlib.use('Agg')  # Non-interactive backend
+matplotlib.use("Agg")  # Non-interactive backend
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np
 from openai import OpenAI
 from PIL import Image
@@ -50,12 +51,14 @@ class ThermometerReader:
         self.auto_read = True
         self.auto_read_interval = 5  # seconds
 
-        # Temperature history for plotting
-        self.temp_history = []  # List of (timestamp, temperature_value)
-        self.max_history_points = 60  # Show last 60 readings (5 minutes at 5s intervals)
+        # Temperature history for plotting (no limit, show all readings)
+        self.temp_history = []  # List of (timestamp, temperature_value, unit)
 
-        # CSV file for logging
-        self.csv_file = "temperature_log.csv"
+        # CSV file for logging - each run gets its own file in a folder
+        self.data_folder = "data"
+        os.makedirs(self.data_folder, exist_ok=True)
+        run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.csv_file = os.path.join(self.data_folder, f"run_{run_timestamp}.csv")
         self._init_csv()
 
         # OpenAI client
@@ -76,33 +79,27 @@ class ThermometerReader:
         cv2.setMouseCallback(self.window_name, self.mouse_callback)
 
     def _init_csv(self):
-        """Initialize CSV file with headers if it doesn't exist."""
-        if not os.path.exists(self.csv_file):
-            with open(self.csv_file, 'w', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(['timestamp', 'temperature_raw', 'temperature_value', 'unit'])
+        """Initialize CSV file with headers."""
+        with open(self.csv_file, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["time", "temperature"])
         print(f"Logging data to: {os.path.abspath(self.csv_file)}")
 
-    def _parse_temperature(self, temp_str: str) -> tuple[float | None, str | None]:
-        """Parse temperature string to extract numeric value and unit."""
-        # Match patterns like "98.6°F", "37.0°C", "98.6 F", "37 C", etc.
-        match = re.search(r'([\d.]+)\s*°?\s*([FCfc])', temp_str)
+    def _parse_temperature(self, temp_str: str) -> float | None:
+        """Parse temperature string to extract numeric value."""
+        # Match numeric value (e.g., "37.0", "98.6")
+        match = re.search(r"([\d.]+)", temp_str)
         if match:
-            value = float(match.group(1))
-            unit = match.group(2).upper()
-            return value, unit
-        return None, None
+            return float(match.group(1))
+        return None
 
-    def _save_to_csv(self, timestamp: datetime, temp_raw: str, temp_value: float | None, unit: str | None):
+    def _save_to_csv(self, timestamp: datetime, temp_value: float | None):
         """Append temperature reading to CSV file."""
-        with open(self.csv_file, 'a', newline='') as f:
+        if temp_value is None:
+            return
+        with open(self.csv_file, "a", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                timestamp.isoformat(),
-                temp_raw,
-                temp_value if temp_value is not None else '',
-                unit if unit is not None else ''
-            ])
+            writer.writerow([timestamp.isoformat(), temp_value])
 
     def mouse_callback(self, event, x, y, flags, param):
         """Handle mouse events for crop selection."""
@@ -163,36 +160,35 @@ class ThermometerReader:
                 base64_image = self.encode_image_to_base64(image)
 
                 response = self.client.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-5",
                     messages=[
                         {
                             "role": "user",
                             "content": [
                                 {
                                     "type": "text",
-                                    "text": "This image shows a thermometer. Please read the temperature displayed on the thermometer. Respond with ONLY the temperature value and unit (e.g., '98.6°F' or '37.0°C'). If you cannot read the temperature clearly, respond with 'Unable to read'."
+                                    "text": "This image shows a thermometer in Celsius. Please read the temperature displayed. Respond with ONLY the numeric value (e.g., '37.0'). If you cannot read the temperature clearly, respond with 'Unable to read'.",
                                 },
                                 {
                                     "type": "image_url",
                                     "image_url": {
                                         "url": f"data:image/jpeg;base64,{base64_image}"
-                                    }
-                                }
-                            ]
+                                    },
+                                },
+                            ],
                         }
                     ],
-                    max_tokens=50
                 )
 
                 result = response.choices[0].message.content.strip()
                 timestamp = datetime.now()
-                temp_value, unit = self._parse_temperature(result)
+                temp_value = self._parse_temperature(result)
 
-                # Create display-friendly version (OpenCV doesn't handle ° well)
-                if temp_value is not None and unit is not None:
-                    display_result = f"{temp_value} {unit}"
+                # Create display-friendly version
+                if temp_value is not None:
+                    display_result = f"{temp_value} C"
                 else:
-                    display_result = result.replace('°', ' ')
+                    display_result = result
 
                 with self.lock:
                     self.temperature = display_result
@@ -200,13 +196,10 @@ class ThermometerReader:
 
                     # Add to history if we got a valid numeric reading
                     if temp_value is not None:
-                        self.temp_history.append((timestamp, temp_value, unit))
-                        # Keep only last N points
-                        if len(self.temp_history) > self.max_history_points:
-                            self.temp_history = self.temp_history[-self.max_history_points:]
+                        self.temp_history.append((timestamp, temp_value))
 
                 # Save to CSV
-                self._save_to_csv(timestamp, result, temp_value, unit)
+                self._save_to_csv(timestamp, temp_value)
 
                 print(f"Temperature reading: {result}")
 
@@ -223,57 +216,67 @@ class ThermometerReader:
         thread.daemon = True
         thread.start()
 
-    def create_plot_image(self, width: int, height: int) -> np.ndarray:
+    def setup_plot(self):
+        """Set up the plot window."""
+        self.plot_window_name = "Temperature Over Time"
+        cv2.namedWindow(self.plot_window_name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(self.plot_window_name, 800, 400)
+
+    def create_plot_image(self) -> np.ndarray:
         """Create a plot of temperature history as an OpenCV image."""
-        fig, ax = plt.subplots(figsize=(width/100, height/100), dpi=100)
-        fig.patch.set_facecolor('#1a1a1a')
-        ax.set_facecolor('#1a1a1a')
+        fig, ax = plt.subplots(figsize=(10, 5), dpi=100)
+        fig.patch.set_facecolor("#1a1a1a")
+        ax.set_facecolor("#1a1a1a")
 
         with self.lock:
             history = list(self.temp_history)
 
         if len(history) >= 2:
-            timestamps = [h[0] for h in history]
+            start_time = history[0][0]
+            seconds = [(h[0] - start_time).total_seconds() for h in history]
             values = [h[1] for h in history]
-            units = [h[2] for h in history]
 
-            # Convert timestamps to seconds ago
-            now = datetime.now()
-            seconds_ago = [(now - t).total_seconds() for t in timestamps]
+            ax.plot(
+                seconds,
+                values,
+                color="#00ffff",
+                linewidth=2,
+                marker="o",
+                markersize=4,
+            )
 
-            # Plot
-            ax.plot(seconds_ago, values, color='#00ffff', linewidth=2, marker='o', markersize=4)
-            ax.fill_between(seconds_ago, values, alpha=0.3, color='#00ffff')
+            ax.set_xlabel("Time (seconds)", color="white", fontsize=10)
+            ax.set_ylabel("Temperature (C)", color="white", fontsize=10)
+            ax.tick_params(colors="white", labelsize=9)
+            ax.grid(True, alpha=0.3, color="white")
 
-            # Formatting
-            ax.set_xlabel('Seconds ago', color='white', fontsize=8)
-            unit_label = units[-1] if units else '°'
-            ax.set_ylabel(f'Temperature ({unit_label})', color='white', fontsize=8)
-            ax.tick_params(colors='white', labelsize=7)
-            ax.invert_xaxis()  # Most recent on the right
-            ax.grid(True, alpha=0.3, color='white')
-
-            # Set spine colors
             for spine in ax.spines.values():
-                spine.set_color('white')
+                spine.set_color("white")
                 spine.set_alpha(0.3)
         else:
-            ax.text(0.5, 0.5, 'Collecting data...', ha='center', va='center',
-                    color='white', fontsize=10, transform=ax.transAxes)
+            ax.text(
+                0.5, 0.5, "Collecting data...",
+                ha="center", va="center", color="white", fontsize=14,
+                transform=ax.transAxes
+            )
+            ax.set_facecolor("#1a1a1a")
             ax.set_xticks([])
             ax.set_yticks([])
 
-        plt.tight_layout(pad=0.5)
+        plt.tight_layout()
 
-        # Convert plot to image
+        # Convert to OpenCV image
         fig.canvas.draw()
-        plot_img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-        plot_img = plot_img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-        plot_img = cv2.cvtColor(plot_img, cv2.COLOR_RGB2BGR)
-
+        plot_img = np.array(fig.canvas.buffer_rgba())
+        plot_img = cv2.cvtColor(plot_img, cv2.COLOR_RGBA2BGR)
         plt.close(fig)
 
         return plot_img
+
+    def update_plot(self):
+        """Update the plot window."""
+        plot_img = self.create_plot_image()
+        cv2.imshow(self.plot_window_name, plot_img)
 
     def draw_overlay(self, frame: np.ndarray) -> np.ndarray:
         """Draw UI overlay on frame."""
@@ -287,7 +290,9 @@ class ThermometerReader:
 
         # Draw selection rectangle while selecting
         if self.selecting and self.selection_start and self.selection_end:
-            cv2.rectangle(overlay, self.selection_start, self.selection_end, (255, 0, 0), 2)
+            cv2.rectangle(
+                overlay, self.selection_start, self.selection_end, (255, 0, 0), 2
+            )
 
         # Draw temperature reading in bottom right
         with self.lock:
@@ -299,7 +304,9 @@ class ThermometerReader:
         font_scale = 1.2
         thickness = 2
 
-        (text_width, text_height), baseline = cv2.getTextSize(temp_text, font, font_scale, thickness)
+        (text_width, text_height), baseline = cv2.getTextSize(
+            temp_text, font, font_scale, thickness
+        )
 
         padding = 15
         box_x = width - text_width - padding * 2 - 10
@@ -312,23 +319,59 @@ class ThermometerReader:
         # Temperature text
         text_x = box_x + padding
         text_y = height - padding - 10
-        cv2.putText(overlay, temp_text, (text_x, text_y), font, font_scale, (0, 255, 255), thickness)
+        cv2.putText(
+            overlay,
+            temp_text,
+            (text_x, text_y),
+            font,
+            font_scale,
+            (0, 255, 255),
+            thickness,
+        )
 
         # Status indicators
         status_y = 30
-        cv2.putText(overlay, "Controls: [C]lear crop [Q]uit", (10, status_y),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(
+            overlay,
+            "Controls: [C]lear crop [Q]uit",
+            (10, status_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1,
+        )
 
         if reading_status:
-            cv2.putText(overlay, reading_status, (width // 2 - 50, status_y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            cv2.putText(
+                overlay,
+                reading_status,
+                (width // 2 - 50, status_y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 255, 255),
+                2,
+            )
 
         if self.crop_region:
-            cv2.putText(overlay, "Crop region set (green box)", (10, status_y + 25),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            cv2.putText(
+                overlay,
+                "Crop region set (green box)",
+                (10, status_y + 25),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 255, 0),
+                1,
+            )
         else:
-            cv2.putText(overlay, "Drag mouse to select thermometer region", (10, status_y + 25),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 165, 255), 1)
+            cv2.putText(
+                overlay,
+                "Drag mouse to select thermometer region",
+                (10, status_y + 25),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 165, 255),
+                1,
+            )
 
         return overlay
 
@@ -336,24 +379,26 @@ class ThermometerReader:
         """Get the cropped region of the frame, or full frame if no crop set."""
         if self.crop_region:
             x, y, w, h = self.crop_region
-            return frame[y:y+h, x:x+w].copy()
+            return frame[y : y + h, x : x + w].copy()
         return frame.copy()
 
     def run(self):
         """Main loop."""
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("Thermometer Reader Started")
-        print("="*50)
+        print("=" * 50)
         print("\nControls:")
         print("  - Drag mouse to select crop region (thermometer area)")
         print("  - Press 'c' to clear crop region")
         print("  - Press 'q' to quit")
         print("\nReads temperature automatically every 5 seconds.")
         print(f"Data saved to: {os.path.abspath(self.csv_file)}")
-        print("="*50 + "\n")
+        print("=" * 50 + "\n")
 
-        # Plot dimensions
-        plot_height = 150
+        # Set up the separate plot window
+        self.setup_plot()
+        last_plot_update = 0
+        plot_update_interval = 1  # Update plot every second
 
         while True:
             ret, frame = self.cap.read()
@@ -361,38 +406,35 @@ class ThermometerReader:
                 print("Failed to grab frame")
                 break
 
-            # Auto-read
             current_time = time.time()
+
+            # Auto-read temperature
             with self.lock:
-                should_read = (current_time - self.last_read_time >= self.auto_read_interval
-                               and not self.reading_in_progress)
+                should_read = (
+                    current_time - self.last_read_time >= self.auto_read_interval
+                    and not self.reading_in_progress
+                )
             if should_read:
                 cropped = self.get_cropped_image(frame)
                 self.read_temperature(cropped)
 
+            # Update plot periodically
+            if current_time - last_plot_update >= plot_update_interval:
+                self.update_plot()
+                last_plot_update = current_time
+
             # Draw overlay on video frame
             display_frame = self.draw_overlay(frame)
 
-            # Create plot
-            frame_height, frame_width = display_frame.shape[:2]
-            plot_img = self.create_plot_image(frame_width, plot_height)
-
-            # Resize plot to match frame width if needed
-            if plot_img.shape[1] != frame_width:
-                plot_img = cv2.resize(plot_img, (frame_width, plot_height))
-
-            # Stack video and plot vertically
-            combined = np.vstack([display_frame, plot_img])
-
-            # Show combined frame
-            cv2.imshow(self.window_name, combined)
+            # Show video frame
+            cv2.imshow(self.window_name, display_frame)
 
             # Handle key presses
             key = cv2.waitKey(1) & 0xFF
 
-            if key == ord('q'):
+            if key == ord("q"):
                 break
-            elif key == ord('c'):
+            elif key == ord("c"):
                 self.crop_region = None
                 print("Crop region cleared")
 
