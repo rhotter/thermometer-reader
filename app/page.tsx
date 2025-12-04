@@ -26,6 +26,25 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [autoRead, setAutoRead] = useState(false);
   const [interval, setIntervalSeconds] = useState(5);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const DEFAULT_PROMPT = "This image contains a number (could be a digital display, meter, gauge, thermometer, scale, or any numeric display). Please read and extract the number shown. Respond with ONLY the numeric value (e.g., '37.5' or '123'). Include decimal points if present. If you cannot read the number clearly, respond with 'Unable to read'.";
+
+  // Custom prompt - initialize from localStorage
+  const [prompt, setPrompt] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("readoutcam-prompt");
+      if (saved) {
+        return saved;
+      }
+    }
+    return DEFAULT_PROMPT;
+  });
+
+  // Save prompt to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("readoutcam-prompt", prompt);
+  }, [prompt]);
 
   // Reading history for CSV export - initialize from localStorage
   const [readings, setReadings] = useState<Reading[]>(() => {
@@ -168,7 +187,7 @@ export default function Home() {
       const response = await fetch("/api/read-number", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageData }),
+        body: JSON.stringify({ image: imageData, prompt }),
       });
 
       const data = await response.json();
@@ -190,7 +209,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [cropRegion, loading]);
+  }, [cropRegion, loading, prompt]);
 
   // Start camera on mount
   useEffect(() => {
@@ -356,12 +375,74 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white text-neutral-900">
       <div className="container mx-auto px-4 py-12 max-w-3xl">
-        <header className="mb-10">
-          <h1 className="text-2xl font-semibold tracking-tight mb-2">ReadoutCam</h1>
-          <p className="text-neutral-500 text-sm">
-            Read data from temperature sensors, gauges, meters, or any numeric display
-          </p>
+        <header className="mb-10 flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight mb-2">ReadoutCam</h1>
+            <p className="text-neutral-500 text-sm">
+              Read data from temperature sensors, gauges, meters, or any numeric display
+            </p>
+          </div>
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-md transition-colors"
+            title="Settings"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
         </header>
+
+        {/* Settings modal */}
+        {showSettings && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setShowSettings(false)}
+            />
+            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Settings</h2>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-sm font-medium text-neutral-700">AI Prompt</label>
+                  <button
+                    onClick={() => setPrompt(DEFAULT_PROMPT)}
+                    className="text-xs text-neutral-500 hover:text-neutral-700"
+                  >
+                    Reset to default
+                  </button>
+                </div>
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  className="w-full h-40 p-3 text-sm border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent resize-none"
+                  placeholder="Enter instructions for the AI..."
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-neutral-800 transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="border border-neutral-200 rounded-lg overflow-hidden">
           {error && (
@@ -526,6 +607,34 @@ export default function Home() {
             <p className="text-neutral-500 text-sm text-center">
               Chart will appear after 2 readings ({readings.length}/2)
             </p>
+          </div>
+        )}
+
+        {/* Data table */}
+        {readings.length > 0 && (
+          <div className="mt-6 border border-neutral-200 rounded-lg overflow-hidden">
+            <div className="max-h-64 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-neutral-50 sticky top-0">
+                  <tr>
+                    <th className="text-left py-2 px-4 font-medium text-neutral-600 border-b border-neutral-200">Timestamp</th>
+                    <th className="text-right py-2 px-4 font-medium text-neutral-600 border-b border-neutral-200">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...readings].reverse().map((reading, i) => (
+                    <tr key={i} className="border-b border-neutral-100 last:border-0">
+                      <td className="py-2 px-4 text-neutral-500 tabular-nums">
+                        {new Date(reading.timestamp).toLocaleString()}
+                      </td>
+                      <td className="py-2 px-4 text-right font-medium tabular-nums">
+                        {reading.value}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
