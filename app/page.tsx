@@ -206,7 +206,7 @@ export default function Home() {
     const chartHeight = height - padding.top - padding.bottom;
 
     // Clear canvas
-    ctx.fillStyle = "#f8fafc";
+    ctx.fillStyle = "#fafafa";
     ctx.fillRect(0, 0, width, height);
 
     // Parse values
@@ -216,7 +216,7 @@ export default function Home() {
     const range = maxVal - minVal || 1;
 
     // Draw grid lines
-    ctx.strokeStyle = "#e2e8f0";
+    ctx.strokeStyle = "#e5e5e5";
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
       const y = padding.top + (chartHeight * i) / 4;
@@ -227,15 +227,15 @@ export default function Home() {
 
       // Y-axis labels
       const val = maxVal - (range * i) / 4;
-      ctx.fillStyle = "#64748b";
-      ctx.font = "12px sans-serif";
+      ctx.fillStyle = "#737373";
+      ctx.font = "12px system-ui, -apple-system, sans-serif";
       ctx.textAlign = "right";
       ctx.fillText(val.toFixed(1), padding.left - 8, y + 4);
     }
 
     // Draw line
-    ctx.strokeStyle = "#2563eb";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
 
     readings.forEach((reading, i) => {
@@ -251,18 +251,18 @@ export default function Home() {
     ctx.stroke();
 
     // Draw points
-    ctx.fillStyle = "#2563eb";
+    ctx.fillStyle = "#000";
     readings.forEach((reading, i) => {
       const x = padding.left + (i / (readings.length - 1)) * chartWidth;
       const y = padding.top + ((maxVal - parseFloat(reading.value)) / range) * chartHeight;
       ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
       ctx.fill();
     });
 
     // X-axis label
-    ctx.fillStyle = "#64748b";
-    ctx.font = "12px sans-serif";
+    ctx.fillStyle = "#737373";
+    ctx.font = "12px system-ui, -apple-system, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("Time", width / 2, height - 5);
   }, [readings]);
@@ -316,46 +316,46 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-3">ReadoutCam</h1>
-          <p className="text-slate-500">
+    <div className="min-h-screen bg-white text-neutral-900">
+      <div className="container mx-auto px-4 py-12 max-w-3xl">
+        <header className="mb-10">
+          <h1 className="text-2xl font-semibold tracking-tight mb-2">ReadoutCam</h1>
+          <p className="text-neutral-500 text-sm">
             Read data from temperature sensors, gauges, meters, or any numeric display
           </p>
         </header>
 
-        <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+        <div className="border border-neutral-200 rounded-lg overflow-hidden">
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
+            <div className="p-4 bg-red-50 border-b border-red-100 text-red-600 text-sm">
               {error}
             </div>
           )}
 
           {/* Start button - shown when not streaming */}
           {!streaming && (
-            <div className="flex flex-col items-center justify-center h-64">
+            <div className="flex flex-col items-center justify-center h-80 bg-neutral-50">
               <button
                 onClick={startCamera}
-                className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-lg transition-colors flex items-center gap-3"
+                className="px-5 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-md text-sm font-medium transition-colors flex items-center gap-2"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
                 Start Camera
               </button>
-              <p className="mt-4 text-slate-400 text-sm">
+              <p className="mt-3 text-neutral-400 text-xs">
                 Click to enable your camera
               </p>
             </div>
           )}
 
           {/* Video and controls - always in DOM, hidden when not streaming */}
-          <div className={streaming ? "space-y-4" : "hidden"}>
+          <div className={streaming ? "" : "hidden"}>
             {/* Video container */}
             <div
               ref={containerRef}
-              className="relative rounded-lg overflow-hidden bg-black"
+              className="relative bg-black"
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
@@ -372,16 +372,16 @@ export default function Home() {
               {/* Crop region overlay */}
               {overlayStyle && (
                 <div
-                  className="absolute border-2 border-green-500 bg-green-500/10 pointer-events-none"
+                  className="absolute border-2 border-white bg-white/20 pointer-events-none"
                   style={overlayStyle}
                 />
               )}
 
               {/* Loading indicator */}
               {loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                  <div className="bg-white/90 px-4 py-2 rounded-lg flex items-center gap-2 text-slate-700">
-                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <div className="bg-white px-3 py-1.5 rounded text-sm flex items-center gap-2 text-neutral-700">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
@@ -392,82 +392,67 @@ export default function Home() {
 
               {/* Result overlay */}
               {result && (
-                <div className="absolute bottom-4 right-4 bg-white/90 px-6 py-3 rounded-xl border border-slate-200 shadow-lg">
-                  <p className="text-3xl font-bold text-blue-600">{result}</p>
+                <div className="absolute bottom-3 right-3 bg-white px-4 py-2 rounded shadow-sm">
+                  <p className="text-2xl font-semibold tabular-nums">{result}</p>
                 </div>
               )}
             </div>
 
-            {/* Instructions */}
-            <p className="text-sm text-slate-500 text-center">
-              {cropRegion
-                ? "Crop region set (green box). Drag to select a new region."
-                : "Drag on the video to select a crop region for the number display"}
-            </p>
-
             {/* Controls */}
-            <div className="flex flex-wrap gap-3 justify-center">
-              <button
-                onClick={() => setAutoRead(!autoRead)}
-                className={`px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2 text-white ${
-                  autoRead
-                    ? "bg-red-500 hover:bg-red-600"
-                    : "bg-green-500 hover:bg-green-600"
-                }`}
-              >
-                {autoRead ? (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-                    </svg>
-                    Stop Reading
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Start Reading
-                  </>
+            <div className="p-4 border-t border-neutral-200 bg-neutral-50">
+              <p className="text-xs text-neutral-500 text-center mb-4">
+                {cropRegion
+                  ? "Crop region set. Drag to select a new region."
+                  : "Drag on the video to select a crop region"}
+              </p>
+
+              <div className="flex flex-wrap gap-2 justify-center">
+                <button
+                  onClick={() => setAutoRead(!autoRead)}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    autoRead
+                      ? "bg-neutral-900 text-white hover:bg-neutral-800"
+                      : "bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                  }`}
+                >
+                  {autoRead ? "Stop" : "Start Reading"}
+                </button>
+
+                <div className="flex items-center gap-1.5 bg-white border border-neutral-200 rounded-md px-3">
+                  <label className="text-xs text-neutral-500">Interval</label>
+                  <select
+                    value={interval}
+                    onChange={(e) => setIntervalSeconds(Number(e.target.value))}
+                    className="bg-transparent py-2 text-sm text-neutral-900 focus:outline-none"
+                  >
+                    <option value={2}>2s</option>
+                    <option value={5}>5s</option>
+                    <option value={10}>10s</option>
+                    <option value={30}>30s</option>
+                  </select>
+                </div>
+
+                {cropRegion && (
+                  <button
+                    onClick={() => setCropRegion(null)}
+                    className="px-4 py-2 bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50 rounded-md text-sm font-medium transition-colors"
+                  >
+                    Clear Crop
+                  </button>
                 )}
-              </button>
 
-              <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-xl px-4">
-                <label className="text-sm text-slate-600">Interval:</label>
-                <select
-                  value={interval}
-                  onChange={(e) => setIntervalSeconds(Number(e.target.value))}
-                  className="bg-transparent py-3 text-slate-900 focus:outline-none"
-                >
-                  <option value={2}>2s</option>
-                  <option value={5}>5s</option>
-                  <option value={10}>10s</option>
-                  <option value={30}>30s</option>
-                </select>
+                {readings.length > 0 && (
+                  <button
+                    onClick={downloadCSV}
+                    className="px-4 py-2 bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    CSV ({readings.length})
+                  </button>
+                )}
               </div>
-
-              {cropRegion && (
-                <button
-                  onClick={() => setCropRegion(null)}
-                  className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition-colors"
-                >
-                  Clear Crop
-                </button>
-              )}
-
-              {readings.length > 0 && (
-                <button
-                  onClick={downloadCSV}
-                  className="px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-semibold transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download CSV ({readings.length})
-                </button>
-              )}
             </div>
           </div>
 
@@ -477,19 +462,19 @@ export default function Home() {
 
         {/* Chart section */}
         {readings.length >= 2 && (
-          <div className="mt-6 bg-slate-50 rounded-2xl p-6 border border-slate-200">
-            <h2 className="text-lg font-semibold mb-4">Readings Over Time</h2>
+          <div className="mt-6 border border-neutral-200 rounded-lg p-4">
+            <h2 className="text-sm font-medium mb-4">Readings Over Time</h2>
             <canvas
               ref={chartRef}
-              className="w-full h-48 rounded-lg"
+              className="w-full h-40"
             />
           </div>
         )}
 
         {/* Show message when waiting for readings */}
         {readings.length > 0 && readings.length < 2 && (
-          <div className="mt-6 bg-slate-50 rounded-2xl p-6 border border-slate-200">
-            <p className="text-slate-500 text-center">
+          <div className="mt-6 border border-neutral-200 rounded-lg p-4">
+            <p className="text-neutral-500 text-sm text-center">
               Chart will appear after 2 readings ({readings.length}/2)
             </p>
           </div>
