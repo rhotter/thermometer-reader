@@ -1,18 +1,30 @@
-# Thermometer Reader
+# ReadoutCam
 
-Reads temperature from a thermometer via webcam using GPT-4o vision.
+A web app that reads numbers from your camera using AI. Point your camera at any numeric display (thermometer, gauge, meter, scale, etc.) and it will automatically read the values.
+
+## Features
+
+- Live webcam video stream
+- Drag to select a crop region for the number display
+- Auto-read at configurable intervals (2s, 5s, 10s, 30s)
+- Live chart showing readings over time
+- Download readings as CSV
 
 ## Setup
 
 ```bash
-export OPENAI_API_KEY="your-api-key"
-uv run main.py
+npm install
+cp .env.example .env.local
+# Add your OpenAI API key to .env.local
+npm run dev
 ```
 
-## Usage
+Open [http://localhost:3000](http://localhost:3000)
 
-1. Drag mouse to select the thermometer region (green box)
-2. Temperature reads automatically every 5 seconds
-3. Press `c` to clear crop, `q` to quit
+## Deploy to Vercel
 
-Data saves to `data/run_<timestamp>.csv` with columns: `time`, `temperature`
+```bash
+vercel
+vercel env add OPENAI_API_KEY
+vercel --prod
+```
