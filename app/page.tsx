@@ -209,11 +209,17 @@ export default function Home() {
     ctx.fillStyle = "#fafafa";
     ctx.fillRect(0, 0, width, height);
 
-    // Parse values
+    // Parse values and times
     const values = readings.map((r) => parseFloat(r.value));
+    const times = readings.map((r) => new Date(r.timestamp).getTime());
     const minVal = Math.min(...values);
     const maxVal = Math.max(...values);
     const range = maxVal - minVal || 1;
+
+    const startTime = times[0];
+    const endTime = times[times.length - 1];
+    const timeRange = endTime - startTime || 1;
+    const maxMinutes = (endTime - startTime) / 60000;
 
     // Draw grid lines
     ctx.strokeStyle = "#e5e5e5";
@@ -239,7 +245,8 @@ export default function Home() {
     ctx.beginPath();
 
     readings.forEach((reading, i) => {
-      const x = padding.left + (i / (readings.length - 1)) * chartWidth;
+      const timeOffset = times[i] - startTime;
+      const x = padding.left + (timeOffset / timeRange) * chartWidth;
       const y = padding.top + ((maxVal - parseFloat(reading.value)) / range) * chartHeight;
 
       if (i === 0) {
@@ -253,18 +260,26 @@ export default function Home() {
     // Draw points
     ctx.fillStyle = "#000";
     readings.forEach((reading, i) => {
-      const x = padding.left + (i / (readings.length - 1)) * chartWidth;
+      const timeOffset = times[i] - startTime;
+      const x = padding.left + (timeOffset / timeRange) * chartWidth;
       const y = padding.top + ((maxVal - parseFloat(reading.value)) / range) * chartHeight;
       ctx.beginPath();
       ctx.arc(x, y, 3, 0, Math.PI * 2);
       ctx.fill();
     });
 
-    // X-axis label
+    // X-axis labels (time in minutes)
     ctx.fillStyle = "#737373";
     ctx.font = "12px system-ui, -apple-system, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("Time", width / 2, height - 5);
+
+    // Draw a few time labels
+    const numLabels = Math.min(5, Math.ceil(maxMinutes) + 1);
+    for (let i = 0; i < numLabels; i++) {
+      const minutes = (maxMinutes * i) / (numLabels - 1);
+      const x = padding.left + (i / (numLabels - 1)) * chartWidth;
+      ctx.fillText(`${minutes.toFixed(1)}m`, x, height - 8);
+    }
   }, [readings]);
 
   // Calculate overlay rectangle style
@@ -411,8 +426,8 @@ export default function Home() {
                   onClick={() => setAutoRead(!autoRead)}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     autoRead
-                      ? "bg-neutral-900 text-white hover:bg-neutral-800"
-                      : "bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                      ? "bg-red-500 text-white hover:bg-red-600"
+                      : "bg-neutral-900 text-white hover:bg-neutral-800"
                   }`}
                 >
                   {autoRead ? "Stop" : "Start Reading"}
