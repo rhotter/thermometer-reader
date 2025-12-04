@@ -206,7 +206,7 @@ export default function Home() {
     const chartHeight = height - padding.top - padding.bottom;
 
     // Clear canvas
-    ctx.fillStyle = "#1e293b";
+    ctx.fillStyle = "#f8fafc";
     ctx.fillRect(0, 0, width, height);
 
     // Parse values
@@ -216,7 +216,7 @@ export default function Home() {
     const range = maxVal - minVal || 1;
 
     // Draw grid lines
-    ctx.strokeStyle = "#334155";
+    ctx.strokeStyle = "#e2e8f0";
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
       const y = padding.top + (chartHeight * i) / 4;
@@ -227,14 +227,14 @@ export default function Home() {
 
       // Y-axis labels
       const val = maxVal - (range * i) / 4;
-      ctx.fillStyle = "#94a3b8";
+      ctx.fillStyle = "#64748b";
       ctx.font = "12px sans-serif";
       ctx.textAlign = "right";
       ctx.fillText(val.toFixed(1), padding.left - 8, y + 4);
     }
 
     // Draw line
-    ctx.strokeStyle = "#3b82f6";
+    ctx.strokeStyle = "#2563eb";
     ctx.lineWidth = 2;
     ctx.beginPath();
 
@@ -251,7 +251,7 @@ export default function Home() {
     ctx.stroke();
 
     // Draw points
-    ctx.fillStyle = "#3b82f6";
+    ctx.fillStyle = "#2563eb";
     readings.forEach((reading, i) => {
       const x = padding.left + (i / (readings.length - 1)) * chartWidth;
       const y = padding.top + ((maxVal - parseFloat(reading.value)) / range) * chartHeight;
@@ -261,7 +261,7 @@ export default function Home() {
     });
 
     // X-axis label
-    ctx.fillStyle = "#94a3b8";
+    ctx.fillStyle = "#64748b";
     ctx.font = "12px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("Time", width / 2, height - 5);
@@ -399,7 +399,7 @@ export default function Home() {
             </div>
 
             {/* Instructions */}
-            <p className="text-sm text-slate-400 text-center">
+            <p className="text-sm text-slate-500 text-center">
               {cropRegion
                 ? "Crop region set (green box). Drag to select a new region."
                 : "Drag on the video to select a crop region for the number display"}
@@ -409,10 +409,10 @@ export default function Home() {
             <div className="flex flex-wrap gap-3 justify-center">
               <button
                 onClick={() => setAutoRead(!autoRead)}
-                className={`px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2 ${
+                className={`px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2 text-white ${
                   autoRead
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-green-600 hover:bg-green-700"
+                    ? "bg-red-500 hover:bg-red-600"
+                    : "bg-green-500 hover:bg-green-600"
                 }`}
               >
                 {autoRead ? (
@@ -434,12 +434,12 @@ export default function Home() {
                 )}
               </button>
 
-              <div className="flex items-center gap-2 bg-slate-700 rounded-xl px-4">
-                <label className="text-sm text-slate-300">Interval:</label>
+              <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-xl px-4">
+                <label className="text-sm text-slate-600">Interval:</label>
                 <select
                   value={interval}
                   onChange={(e) => setIntervalSeconds(Number(e.target.value))}
-                  className="bg-transparent py-3 text-white focus:outline-none"
+                  className="bg-transparent py-3 text-slate-900 focus:outline-none"
                 >
                   <option value={2}>2s</option>
                   <option value={5}>5s</option>
@@ -451,7 +451,7 @@ export default function Home() {
               {cropRegion && (
                 <button
                   onClick={() => setCropRegion(null)}
-                  className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-xl font-semibold transition-colors"
+                  className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition-colors"
                 >
                   Clear Crop
                 </button>
@@ -460,7 +460,7 @@ export default function Home() {
               {readings.length > 0 && (
                 <button
                   onClick={downloadCSV}
-                  className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl font-semibold transition-colors flex items-center gap-2"
+                  className="px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-semibold transition-colors flex items-center gap-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -477,7 +477,7 @@ export default function Home() {
 
         {/* Chart section */}
         {readings.length >= 2 && (
-          <div className="mt-6 bg-slate-800/50 rounded-2xl p-6 backdrop-blur border border-slate-700">
+          <div className="mt-6 bg-slate-50 rounded-2xl p-6 border border-slate-200">
             <h2 className="text-lg font-semibold mb-4">Readings Over Time</h2>
             <canvas
               ref={chartRef}
@@ -488,8 +488,8 @@ export default function Home() {
 
         {/* Show message when waiting for readings */}
         {readings.length > 0 && readings.length < 2 && (
-          <div className="mt-6 bg-slate-800/50 rounded-2xl p-6 backdrop-blur border border-slate-700">
-            <p className="text-slate-400 text-center">
+          <div className="mt-6 bg-slate-50 rounded-2xl p-6 border border-slate-200">
+            <p className="text-slate-500 text-center">
               Chart will appear after 2 readings ({readings.length}/2)
             </p>
           </div>
