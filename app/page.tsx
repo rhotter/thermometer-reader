@@ -278,7 +278,19 @@ export default function Home() {
       ctx.fillStyle = "#737373";
       ctx.font = "12px system-ui, -apple-system, sans-serif";
       ctx.textAlign = "right";
-      ctx.fillText(val.toFixed(1), padding.left - 8, y + 4);
+      // Use appropriate formatting based on value magnitude
+      const absVal = Math.abs(val);
+      let label: string;
+      if (absVal === 0) {
+        label = "0";
+      } else if (absVal < 0.001 || absVal >= 10000) {
+        label = val.toExponential(2);
+      } else if (absVal < 1) {
+        label = val.toPrecision(3);
+      } else {
+        label = val.toFixed(1);
+      }
+      ctx.fillText(label, padding.left - 8, y + 4);
     }
 
     // Draw line
